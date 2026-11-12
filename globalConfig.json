@@ -268,8 +268,8 @@
                             "type": "interval",
                             "label": "Interval",
                             "field": "interval",
-                            "defaultValue": "300",
-                            "help": "Polling interval in seconds (60-86400). Sourcetypes aruba:central:ap and aruba:central:swarm.",
+                            "defaultValue": "60",
+                            "help": "Polling interval in seconds (60-86400). CPU and memory are point-in-time values from the AP list, so 60 seconds is the finest resolution. Sourcetypes aruba:central:ap and aruba:central:swarm.",
                             "required": true,
                             "options": {
                                 "range": [
@@ -330,11 +330,11 @@
                             "label": "Interval",
                             "field": "interval",
                             "defaultValue": "900",
-                            "help": "Polling interval in seconds (300-10800). Each run makes one API call per AP. Sourcetype aruba:central:ap_throughput.",
+                            "help": "Polling interval in seconds (60-10800). The API returns 5-minute samples, so polling faster than 300 seconds does not add resolution; it only notices a new sample sooner and costs one API call per online AP per run. Sourcetype aruba:central:ap_throughput.",
                             "required": true,
                             "options": {
                                 "range": [
-                                    300,
+                                    60,
                                     10800
                                 ]
                             }
@@ -506,7 +506,7 @@
     "meta": {
         "name": "TA_hpe_aruba_central",
         "restRoot": "TA_hpe_aruba_central",
-        "version": "1.0.0",
+        "version": "1.2.0",
         "displayName": "HPE Aruba Central Add-on for Splunk",
         "schemaVersion": "0.0.10",
         "checkForUpdates": false,

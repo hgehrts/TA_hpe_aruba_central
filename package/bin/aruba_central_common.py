@@ -65,6 +65,22 @@ def logger_for_input(input_name: str) -> logging.Logger:
     return log.Logs().get_logger("%s_%s" % (ADDON_NAME.lower(), input_name))
 
 
+def apply_log_level(logger: logging.Logger, session_key: str) -> str:
+    """Apply the Logging-tab level and record it at that same level."""
+    try:
+        configured = conf_manager.get_log_level(
+            logger=logger, session_key=session_key, app_name=ADDON_NAME, conf_name=SETTINGS_CONF)
+    except Exception:
+        configured = "INFO"
+    label = str(configured).upper()
+    numeric = getattr(logging, label, None)
+    if not isinstance(numeric, int):
+        label, numeric = "INFO", logging.INFO
+    logger.setLevel(numeric)
+    logger.log(numeric, "action=log_level level=%s", label)
+    return label
+
+
 def is_true(value: Any) -> bool:
     return str(value).strip().lower() in ("1", "true", "t", "yes", "y", "on")
 
@@ -269,11 +285,7 @@ def run_inputs(inputs: smi.InputDefinition, event_writer: smi.EventWriter,
         input_kind, _, short_name = full_name.rpartition("://")
         logger = logger_for_input("%s_%s" % (input_kind.replace("aruba_central_", "", 1), short_name))
         session_key = inputs.metadata["session_key"]
-        try:
-            logger.setLevel(conf_manager.get_log_level(
-                logger=logger, session_key=session_key, app_name=ADDON_NAME, conf_name=SETTINGS_CONF))
-        except Exception:
-            logger.setLevel(logging.INFO)
+        apply_log_level(logger, session_key)
         log.modular_input_start(logger, full_name)
         ctx = InputContext(full_name, item, session_key, event_writer, logger)
         started = time.time()

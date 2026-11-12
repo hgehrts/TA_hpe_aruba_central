@@ -8,6 +8,7 @@ import logging
 import random
 import threading
 import time
+import urllib.parse
 from typing import Any, Callable, Dict, Iterator, Optional
 
 import requests
@@ -146,6 +147,8 @@ class ArubaCentralClient:
             "client_id": self._client_id,
             "client_secret": self._client_secret,
         }
+        started = self._clock()
+        token_path = urllib.parse.urlparse(self.token_url).path or "/"
         try:
             response = self._session.post(
                 self.token_url,
@@ -154,9 +157,11 @@ class ArubaCentralClient:
                 timeout=self._timeout,
             )
         except requests.exceptions.RequestException as exc:
+            self._log_request("POST", token_path, type(exc).__name__, started, 0)
             raise ArubaCentralConnectionError(
                 "Token request to %s failed: %s" % (self.token_url, type(exc).__name__)
             ) from exc
+        self._log_request("POST", token_path, response.status_code, started, 0)
         if response.status_code in (400, 401, 403):
             raise ArubaCentralAuthError(
                 "Token request rejected (HTTP %s): %s" % (response.status_code, _error_detail(response))
@@ -199,6 +204,14 @@ class ArubaCentralClient:
     def _backoff(self, attempt: int) -> float:
         return min(60.0, 2.0 ** attempt) + random.uniform(0, 0.5)
 
+    def _log_request(self, method, path, status, started, attempt):
+        """One debug line per HTTP call. Never includes the token, the secret or the body."""
+        duration_ms = int(max(0.0, self._clock() - started) * 1000)
+        self._logger.debug(
+            "action=request method=%s path=%s status=%s duration_ms=%d attempt=%d",
+            method, path, status, duration_ms, attempt + 1,
+        )
+
     def get_json(self, path: str, params: Optional[Dict[str, Any]] = None) -> Any:
         url = self.base_url + path
         refreshed = False
@@ -207,6 +220,7 @@ class ArubaCentralClient:
             token = self.access_token()
             self._limiter.acquire()
             self.request_count += 1
+            started = self._clock()
             try:
                 response = self._session.get(
                     url,
@@ -215,6 +229,7 @@ class ArubaCentralClient:
                     timeout=self._timeout,
                 )
             except requests.exceptions.RequestException as exc:
+                self._log_request("GET", path, type(exc).__name__, started, attempt)
                 if attempt >= self._max_retries:
                     raise ArubaCentralConnectionError(
                         "GET %s failed after %d attempts: %s" % (path, attempt + 1, type(exc).__name__)
@@ -227,6 +242,7 @@ class ArubaCentralClient:
                 continue
 
             status = response.status_code
+            self._log_request("GET", path, status, started, attempt)
             if status == 200:
                 try:
                     return response.json()

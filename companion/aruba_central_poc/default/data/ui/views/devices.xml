@@ -1,0 +1,219 @@
+<dashboard version="2" theme="dark">
+    <label>Devices</label>
+    <description>Monitored devices and inventory.</description>
+    <definition><![CDATA[
+{
+  "title": "Devices",
+  "description": "Monitored devices and the device inventory. Click a type in the chart to filter the tables.",
+  "inputs": {
+    "input_time": {
+      "type": "input.timerange",
+      "title": "Time range",
+      "options": {
+        "token": "tr",
+        "defaultValue": "-24h,now"
+      }
+    },
+    "input_site": {
+      "type": "input.text",
+      "title": "Site (wildcard)",
+      "options": {
+        "token": "site",
+        "defaultValue": "*"
+      }
+    },
+    "input_dtype": {
+      "type": "input.text",
+      "title": "Device type (wildcard)",
+      "options": {
+        "token": "dtype",
+        "defaultValue": "*"
+      }
+    }
+  },
+  "dataSources": {
+    "ds_types": {
+      "type": "ds.search",
+      "name": "Monitored types",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:device\" siteName=\"$site$\"\n| stats dc(serialNumber) as devices by deviceType"
+      }
+    },
+    "ds_inv_types": {
+      "type": "ds.search",
+      "name": "Inventory types",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:device_inventory\" siteName=\"$site$\"\n| stats dc(serialNumber) as devices by deviceType"
+      }
+    },
+    "ds_devices": {
+      "type": "ds.search",
+      "name": "Monitored devices",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:device\" siteName=\"$site$\"\n| where \"$dtype$\"=\"*\" OR deviceType=\"$dtype$\"\n| stats latest(deviceName) as name latest(status) as status latest(model) as model latest(siteName) as site latest(firmwareVersion) as firmware by serialNumber deviceType\n| table deviceType serialNumber name status model site firmware\n| sort deviceType name"
+      }
+    },
+    "ds_inventory": {
+      "type": "ds.search",
+      "name": "Inventory",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:device_inventory\" siteName=\"$site$\"\n| where \"$dtype$\"=\"*\" OR deviceType=\"$dtype$\"\n| stats latest(deviceName) as name latest(status) as status latest(model) as model latest(siteName) as site latest(isProvisioned) as provisioned by serialNumber deviceType\n| table deviceType serialNumber name status model site provisioned\n| sort deviceType name"
+      }
+    }
+  },
+  "visualizations": {
+    "viz_types": {
+      "type": "splunk.column",
+      "title": "Monitored devices by type",
+      "dataSources": {
+        "primary": "ds_types"
+      },
+      "options": {
+        "x": "> primary | seriesByName('deviceType')",
+        "y": "> primary | frameBySeriesNames('devices')",
+        "legendDisplay": "off"
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.setToken",
+          "options": {
+            "tokens": [
+              {
+                "token": "dtype",
+                "value": "$click.name$"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "viz_inv_types": {
+      "type": "splunk.column",
+      "title": "Inventory by type",
+      "dataSources": {
+        "primary": "ds_inv_types"
+      },
+      "options": {
+        "x": "> primary | seriesByName('deviceType')",
+        "y": "> primary | frameBySeriesNames('devices')",
+        "legendDisplay": "off"
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.setToken",
+          "options": {
+            "tokens": [
+              {
+                "token": "dtype",
+                "value": "$click.name$"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "viz_devices": {
+      "type": "splunk.table",
+      "title": "Monitored devices",
+      "dataSources": {
+        "primary": "ds_devices"
+      },
+      "options": {
+        "count": 20
+      }
+    },
+    "viz_inventory": {
+      "type": "splunk.table",
+      "title": "Device inventory",
+      "dataSources": {
+        "primary": "ds_inventory"
+      },
+      "options": {
+        "count": 20
+      }
+    }
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "queryParameters": {
+            "earliest": "$tr.earliest$",
+            "latest": "$tr.latest$"
+          }
+        }
+      }
+    }
+  },
+  "layout": {
+    "globalInputs": [
+      "input_time",
+      "input_site",
+      "input_dtype"
+    ],
+    "layoutDefinitions": {
+      "layout_1": {
+        "type": "absolute",
+        "options": {
+          "width": 1200,
+          "height": 1200
+        },
+        "structure": [
+          {
+            "item": "viz_types",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "w": 590,
+              "h": 300
+            }
+          },
+          {
+            "item": "viz_inv_types",
+            "type": "block",
+            "position": {
+              "x": 610,
+              "y": 0,
+              "w": 590,
+              "h": 300
+            }
+          },
+          {
+            "item": "viz_devices",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 320,
+              "w": 1200,
+              "h": 380
+            }
+          },
+          {
+            "item": "viz_inventory",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 720,
+              "w": 1200,
+              "h": 380
+            }
+          }
+        ]
+      }
+    },
+    "options": {
+      "submitButton": false
+    },
+    "tabs": {
+      "items": [
+        {
+          "layoutId": "layout_1",
+          "label": "Devices"
+        }
+      ]
+    }
+  }
+}
+]]></definition>
+</dashboard>

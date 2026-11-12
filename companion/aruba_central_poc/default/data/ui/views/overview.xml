@@ -1,0 +1,315 @@
+<dashboard version="2" theme="dark">
+    <label>Overview</label>
+    <description>Access points, throughput, sites and alerts.</description>
+    <definition><![CDATA[
+{
+  "title": "Overview",
+  "description": "Current access points, throughput and the latest alerts.",
+  "inputs": {
+    "input_time": {
+      "type": "input.timerange",
+      "title": "Time range",
+      "options": {
+        "token": "tr",
+        "defaultValue": "-24h,now"
+      }
+    },
+    "input_site": {
+      "type": "input.text",
+      "title": "Site (wildcard)",
+      "options": {
+        "token": "site",
+        "defaultValue": "*"
+      }
+    }
+  },
+  "dataSources": {
+    "ds_online": {
+      "type": "ds.search",
+      "name": "APs online",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:ap\" siteName=\"$site$\" earliest=-30m\n| stats latest(status) as status by serialNumber\n| where status=\"ONLINE\" | stats count"
+      }
+    },
+    "ds_offline": {
+      "type": "ds.search",
+      "name": "APs not online",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:ap\" siteName=\"$site$\" earliest=-30m\n| stats latest(status) as status by serialNumber\n| where status!=\"ONLINE\" | stats count"
+      }
+    },
+    "ds_sessions": {
+      "type": "ds.search",
+      "name": "Sessions",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:ap\" siteName=\"$site$\" earliest=-30m\n| stats latest(clientCount) as clientCount by serialNumber\n| stats sum(clientCount) as sessions"
+      }
+    },
+    "ds_cpu": {
+      "type": "ds.search",
+      "name": "CPU and memory",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:ap\" siteName=\"$site$\"\n| timechart span=5m max(cpuUtilization) as max_cpu_pct max(memoryUtilization) as max_mem_pct"
+      }
+    },
+    "ds_tp": {
+      "type": "ds.search",
+      "name": "Wireless throughput",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:ap_throughput\" siteName=\"$site$\" interfaceType=WIRELESS\n| bin _time span=5m\n| stats avg(tx) as tx avg(rx) as rx by _time serialNumber\n| timechart span=5m sum(tx) as tx_bps sum(rx) as rx_bps"
+      }
+    },
+    "ds_alerts": {
+      "type": "ds.search",
+      "name": "Recent alerts",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:alert\" siteName=\"$site$\"\n| table _time severity status category summary siteName\n| sort - _time | head 20"
+      }
+    },
+    "ds_sites": {
+      "type": "ds.search",
+      "name": "Sites",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:site_health\" siteName=\"$site$\"\n| stats latest('clients.count') as clients latest('devices.count') as devices latest('alerts.totalCount') as alerts by siteName\n| sort - clients"
+      }
+    }
+  },
+  "visualizations": {
+    "viz_online": {
+      "type": "splunk.singlevalue",
+      "title": "APs online",
+      "dataSources": {
+        "primary": "ds_online"
+      },
+      "options": {
+        "sparklineDisplay": "off",
+        "trendDisplay": "off"
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "url": "/app/aruba_central_poc/access_points?form.status=ONLINE&form.site=$site$",
+            "newTab": false
+          }
+        }
+      ]
+    },
+    "viz_offline": {
+      "type": "splunk.singlevalue",
+      "title": "APs not online",
+      "dataSources": {
+        "primary": "ds_offline"
+      },
+      "options": {
+        "sparklineDisplay": "off",
+        "trendDisplay": "off"
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "url": "/app/aruba_central_poc/access_points?form.status=OFFLINE&form.site=$site$",
+            "newTab": false
+          }
+        }
+      ]
+    },
+    "viz_sessions": {
+      "type": "splunk.singlevalue",
+      "title": "Wireless sessions",
+      "dataSources": {
+        "primary": "ds_sessions"
+      },
+      "options": {
+        "sparklineDisplay": "off",
+        "trendDisplay": "off"
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "url": "/app/aruba_central_poc/access_points?form.status=*&form.site=$site$",
+            "newTab": false
+          }
+        }
+      ]
+    },
+    "viz_cpu": {
+      "type": "splunk.line",
+      "title": "Max CPU and memory (%)",
+      "dataSources": {
+        "primary": "ds_cpu"
+      },
+      "options": {
+        "x": "> primary | seriesByName('_time')",
+        "y": "> primary | frameBySeriesNames('max_cpu_pct', 'max_mem_pct')",
+        "legendDisplay": "bottom",
+        "nullValueDisplay": "gaps"
+      }
+    },
+    "viz_tp": {
+      "type": "splunk.line",
+      "title": "Wireless throughput (bit/s)",
+      "dataSources": {
+        "primary": "ds_tp"
+      },
+      "options": {
+        "x": "> primary | seriesByName('_time')",
+        "y": "> primary | frameBySeriesNames('tx_bps', 'rx_bps')",
+        "legendDisplay": "bottom",
+        "nullValueDisplay": "gaps"
+      }
+    },
+    "viz_alerts": {
+      "type": "splunk.table",
+      "title": "Latest alerts",
+      "dataSources": {
+        "primary": "ds_alerts"
+      },
+      "options": {
+        "count": 20
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "url": "/app/aruba_central_poc/alerts?form.site=$row.siteName.value$&form.severity=*",
+            "newTab": false
+          }
+        }
+      ]
+    },
+    "viz_sites": {
+      "type": "splunk.table",
+      "title": "Sites",
+      "dataSources": {
+        "primary": "ds_sites"
+      },
+      "options": {
+        "count": 20
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "url": "/app/aruba_central_poc/sites?form.site=$row.siteName.value$",
+            "newTab": false
+          }
+        }
+      ]
+    }
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "queryParameters": {
+            "earliest": "$tr.earliest$",
+            "latest": "$tr.latest$"
+          }
+        }
+      }
+    }
+  },
+  "layout": {
+    "globalInputs": [
+      "input_time",
+      "input_site"
+    ],
+    "layoutDefinitions": {
+      "layout_1": {
+        "type": "absolute",
+        "options": {
+          "width": 1200,
+          "height": 1200
+        },
+        "structure": [
+          {
+            "item": "viz_online",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "w": 390,
+              "h": 160
+            }
+          },
+          {
+            "item": "viz_offline",
+            "type": "block",
+            "position": {
+              "x": 400,
+              "y": 0,
+              "w": 390,
+              "h": 160
+            }
+          },
+          {
+            "item": "viz_sessions",
+            "type": "block",
+            "position": {
+              "x": 800,
+              "y": 0,
+              "w": 390,
+              "h": 160
+            }
+          },
+          {
+            "item": "viz_cpu",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 180,
+              "w": 590,
+              "h": 300
+            }
+          },
+          {
+            "item": "viz_tp",
+            "type": "block",
+            "position": {
+              "x": 610,
+              "y": 180,
+              "w": 590,
+              "h": 300
+            }
+          },
+          {
+            "item": "viz_alerts",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 500,
+              "w": 1200,
+              "h": 340
+            }
+          },
+          {
+            "item": "viz_sites",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 860,
+              "w": 1200,
+              "h": 340
+            }
+          }
+        ]
+      }
+    },
+    "options": {
+      "submitButton": false
+    },
+    "tabs": {
+      "items": [
+        {
+          "layoutId": "layout_1",
+          "label": "Overview"
+        }
+      ]
+    }
+  }
+}
+]]></definition>
+</dashboard>

@@ -5,7 +5,7 @@ Collects access point, swarm, AP throughput, device inventory, site health and a
 
 | | |
 |---|---|
-| Version | 1.0.0 |
+| Version | 1.2.0 |
 | Splunk | Enterprise 10.x (tested on 10.6.1.1); Splunk Cloud (AppInspect 4.4.0 precert/cloud checks: 0 failures). Older releases are untested. |
 | Python | 3.13 and 3.9 (`python.required = 3.9, 3.13`); both runtimes tested inside Splunk 10.6.1.1 |
 | API | New Central only. Classic Aruba Central (`apigw-*.central.arubanetworks.com`, `/monitoring/v1|v2`) is **not** supported. |
@@ -91,13 +91,18 @@ New inputs are created **disabled**; enable them after review.
 
 | Input | Default interval (range) | API calls per run | Sourcetypes |
 |---|---|---|---|
-| Wireless (APs and Swarms) | 300 s (60–86400) | `ceil(APs/1000) + ceil(swarms/100)` | `aruba:central:ap`, `aruba:central:swarm` |
-| AP Throughput | 900 s (300–10800) | `ceil(online APs/1000) + online APs` | `aruba:central:ap_throughput` |
+| Wireless (APs and Swarms) | 60 s (60–86400) | `ceil(APs/1000) + ceil(swarms/100)` | `aruba:central:ap`, `aruba:central:swarm` |
+| AP Throughput | 900 s (60–10800) | `ceil(online APs/1000) + online APs` | `aruba:central:ap_throughput` |
 | Inventory (Devices) | 3600 s (300–86400) | `ceil(inventory/100) + ceil(devices/100)` | `aruba:central:device_inventory`, `aruba:central:device` |
 | Site Health and Alerts | 300 s (60–86400) | `ceil(sites/100) + ceil(alerts/50)` | `aruba:central:site_health`, `aruba:central:alert` |
 
+CPU and memory are `cpuUtilization` and `memoryUtilization` on each access point, collected by the Wireless
+input. They are a point-in-time snapshot, so the default interval is 60 seconds.
+
 AP Throughput has an `Interface type` (`WIRELESS` default, `WIRED`, `LTE`). Changing it resets the input's
-checkpoint.
+checkpoint. The API returns 5-minute samples, so an interval below 300 seconds does not add resolution. It
+only notices the next sample sooner and costs one API call per online AP per run. The default stays 900
+seconds. 60 seconds is allowed.
 
 ## Data collected
 
@@ -160,8 +165,12 @@ samples (one per AP per 5 minutes in the API samples).
 
 Logs: `$SPLUNK_HOME/var/log/splunk/ta_hpe_aruba_central_<input type>_<input name>.log`
 (e.g. `ta_hpe_aruba_central_wireless_central_de3.log`) and
-`ta_hpe_aruba_central_account_validation.log`. The UCC dashboard (`Dashboard` tab) shows ingestion and
-errors from these logs.
+`ta_hpe_aruba_central_account_validation.log`. The **Documentation** page in the add-on menu describes the
+account, the inputs and these logs. The **Dashboard** page shows ingestion and errors from the logs.
+
+`DEBUG` writes one line per HTTP request (`action=request` with method, path, status, duration and attempt)
+and never the token, the secret or a response body. `INFO` keeps the run summary. `WARNING` keeps retries
+only. `ERROR` keeps failures only. The same level applies to account validation.
 
 ```
 index=_internal source=*ta_hpe_aruba_central_* (log_level=ERROR OR log_level=WARNING)
@@ -231,7 +240,7 @@ python3.9 -m venv .venv-build39 && .venv-build39/bin/pip install -r requirements
 .venv/bin/python -m pytest --cov=package/bin tests          # same with .venv-build39/bin/python
 scripts/build.sh                                            # -> dist/*.tar.gz (libs installed with Python 3.9)
 scripts/appinspect.sh                                       # precert + cloud checks, fails on failures
-tests/e2e/run_e2e.sh dist/TA_hpe_aruba_central-1.0.0.tar.gz # Docker: Splunk 10.6.1 + mock API
+tests/e2e/run_e2e.sh dist/TA_hpe_aruba_central-1.2.0.tar.gz # Docker: Splunk 10.6.1 + mock API
 ```
 
 - `scripts/build.sh [version]` writes the version into `globalConfig.json` (UCC behaviour); reset it when

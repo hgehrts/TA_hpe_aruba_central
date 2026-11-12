@@ -1,0 +1,165 @@
+<dashboard version="2" theme="dark">
+    <label>Throughput</label>
+    <description>AP throughput by interface type.</description>
+    <definition><![CDATA[
+{
+  "title": "Throughput",
+  "description": "AP throughput samples. The API reports tx and rx in bit/s, in 5-minute buckets.",
+  "inputs": {
+    "input_time": {
+      "type": "input.timerange",
+      "title": "Time range",
+      "options": {
+        "token": "tr",
+        "defaultValue": "-24h,now"
+      }
+    },
+    "input_site": {
+      "type": "input.text",
+      "title": "Site (wildcard)",
+      "options": {
+        "token": "site",
+        "defaultValue": "*"
+      }
+    },
+    "input_iface": {
+      "type": "input.dropdown",
+      "title": "Interface",
+      "options": {
+        "token": "iface",
+        "defaultValue": "*",
+        "items": [
+          {
+            "label": "All",
+            "value": "*"
+          },
+          {
+            "label": "WIRELESS",
+            "value": "WIRELESS"
+          },
+          {
+            "label": "WIRED",
+            "value": "WIRED"
+          },
+          {
+            "label": "LTE",
+            "value": "LTE"
+          }
+        ]
+      }
+    }
+  },
+  "dataSources": {
+    "ds_trend": {
+      "type": "ds.search",
+      "name": "Trend",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:ap_throughput\" siteName=\"$site$\"\n| where \"$iface$\"=\"*\" OR interfaceType=\"$iface$\"\n| bin _time span=5m\n| stats avg(tx) as tx avg(rx) as rx by _time serialNumber\n| timechart span=5m sum(tx) as tx_bps sum(rx) as rx_bps"
+      }
+    },
+    "ds_top": {
+      "type": "ds.search",
+      "name": "Top APs",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:ap_throughput\" siteName=\"$site$\"\n| where \"$iface$\"=\"*\" OR interfaceType=\"$iface$\"\n| stats avg(tx) as avg_tx_bps avg(rx) as avg_rx_bps max(tx) as max_tx_bps max(rx) as max_rx_bps latest(deviceName) as AP by serialNumber\n| eval avg_total_bps=round(avg_tx_bps+avg_rx_bps,0), avg_tx_bps=round(avg_tx_bps,0), avg_rx_bps=round(avg_rx_bps,0), max_tx_bps=round(max_tx_bps,0), max_rx_bps=round(max_rx_bps,0)\n| sort - avg_total_bps | head 10\n| table AP serialNumber avg_total_bps avg_tx_bps avg_rx_bps max_tx_bps max_rx_bps"
+      }
+    }
+  },
+  "visualizations": {
+    "viz_trend": {
+      "type": "splunk.line",
+      "title": "Total throughput (bit/s)",
+      "dataSources": {
+        "primary": "ds_trend"
+      },
+      "options": {
+        "x": "> primary | seriesByName('_time')",
+        "y": "> primary | frameBySeriesNames('tx_bps', 'rx_bps')",
+        "legendDisplay": "bottom",
+        "nullValueDisplay": "gaps"
+      }
+    },
+    "viz_top": {
+      "type": "splunk.table",
+      "title": "Top 10 access points",
+      "dataSources": {
+        "primary": "ds_top"
+      },
+      "options": {
+        "count": 20
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "url": "/app/aruba_central_poc/access_point?form.serial=$row.serialNumber.value$&form.site=$site$",
+            "newTab": false
+          }
+        }
+      ]
+    }
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "queryParameters": {
+            "earliest": "$tr.earliest$",
+            "latest": "$tr.latest$"
+          }
+        }
+      }
+    }
+  },
+  "layout": {
+    "globalInputs": [
+      "input_time",
+      "input_site",
+      "input_iface"
+    ],
+    "layoutDefinitions": {
+      "layout_1": {
+        "type": "absolute",
+        "options": {
+          "width": 1200,
+          "height": 800
+        },
+        "structure": [
+          {
+            "item": "viz_trend",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "w": 1200,
+              "h": 340
+            }
+          },
+          {
+            "item": "viz_top",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 360,
+              "w": 1200,
+              "h": 400
+            }
+          }
+        ]
+      }
+    },
+    "options": {
+      "submitButton": false
+    },
+    "tabs": {
+      "items": [
+        {
+          "layoutId": "layout_1",
+          "label": "Throughput"
+        }
+      ]
+    }
+  }
+}
+]]></definition>
+</dashboard>

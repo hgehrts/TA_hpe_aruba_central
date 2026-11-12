@@ -1,0 +1,172 @@
+<dashboard version="2" theme="dark">
+    <label>Alerts</label>
+    <description>Alerts from New Central.</description>
+    <definition><![CDATA[
+{
+  "title": "Alerts",
+  "description": "Alerts ingested from New Central. A row opens the site.",
+  "inputs": {
+    "input_time": {
+      "type": "input.timerange",
+      "title": "Time range",
+      "options": {
+        "token": "tr",
+        "defaultValue": "-24h,now"
+      }
+    },
+    "input_site": {
+      "type": "input.text",
+      "title": "Site (wildcard)",
+      "options": {
+        "token": "site",
+        "defaultValue": "*"
+      }
+    },
+    "input_severity": {
+      "type": "input.dropdown",
+      "title": "Severity",
+      "options": {
+        "token": "severity",
+        "defaultValue": "*",
+        "items": [
+          {
+            "label": "All",
+            "value": "*"
+          },
+          {
+            "label": "Critical",
+            "value": "Critical"
+          },
+          {
+            "label": "Major",
+            "value": "Major"
+          },
+          {
+            "label": "Minor",
+            "value": "Minor"
+          },
+          {
+            "label": "Warning",
+            "value": "Warning"
+          },
+          {
+            "label": "Info",
+            "value": "Info"
+          }
+        ]
+      }
+    }
+  },
+  "dataSources": {
+    "ds_counts": {
+      "type": "ds.search",
+      "name": "By severity",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:alert\" siteName=\"$site$\"\n| stats count by severity"
+      }
+    },
+    "ds_alerts": {
+      "type": "ds.search",
+      "name": "Alerts",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:alert\" siteName=\"$site$\"\n| where \"$severity$\"=\"*\" OR severity=\"$severity$\"\n| table _time severity status category name summary siteName\n| sort - _time"
+      }
+    }
+  },
+  "visualizations": {
+    "viz_counts": {
+      "type": "splunk.column",
+      "title": "Alerts by severity",
+      "dataSources": {
+        "primary": "ds_counts"
+      },
+      "options": {
+        "x": "> primary | seriesByName('severity')",
+        "y": "> primary | frameBySeriesNames('count')",
+        "legendDisplay": "off"
+      }
+    },
+    "viz_alerts": {
+      "type": "splunk.table",
+      "title": "Alerts",
+      "dataSources": {
+        "primary": "ds_alerts"
+      },
+      "options": {
+        "count": 20
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "url": "/app/aruba_central_poc/sites?form.site=$row.siteName.value$",
+            "newTab": false
+          }
+        }
+      ]
+    }
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "queryParameters": {
+            "earliest": "$tr.earliest$",
+            "latest": "$tr.latest$"
+          }
+        }
+      }
+    }
+  },
+  "layout": {
+    "globalInputs": [
+      "input_time",
+      "input_site",
+      "input_severity"
+    ],
+    "layoutDefinitions": {
+      "layout_1": {
+        "type": "absolute",
+        "options": {
+          "width": 1200,
+          "height": 900
+        },
+        "structure": [
+          {
+            "item": "viz_counts",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "w": 1200,
+              "h": 280
+            }
+          },
+          {
+            "item": "viz_alerts",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 300,
+              "w": 1200,
+              "h": 480
+            }
+          }
+        ]
+      }
+    },
+    "options": {
+      "submitButton": false
+    },
+    "tabs": {
+      "items": [
+        {
+          "layoutId": "layout_1",
+          "label": "Alerts"
+        }
+      ]
+    }
+  }
+}
+]]></definition>
+</dashboard>

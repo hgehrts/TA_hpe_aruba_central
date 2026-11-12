@@ -17,6 +17,7 @@ from aruba_central_common import (
     ACCOUNT_CONF,
     ADDON_NAME,
     TOKEN_REALM,
+    apply_log_level,
     get_proxies,
 )
 
@@ -94,6 +95,7 @@ class ArubaCentralAccountHandler(AdminExternalHandler):
         if missing:
             raise RestError(400, "Missing required field(s): %s" % ", ".join(missing))
         logger = _logger()
+        apply_log_level(logger, self.getSessionKey())
         validate_account(account, proxies=get_proxies(logger, self.getSessionKey()), logger=logger)
 
     def _drop_cached_token(self):

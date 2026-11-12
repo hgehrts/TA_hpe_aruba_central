@@ -144,6 +144,35 @@ def test_run_inputs_runs_collect_and_isolates_errors(monkeypatch, caplog):
     assert 'exc_l="Unexpected Error"' in caplog.text and "RuntimeError: bad" in caplog.text
     assert 'exc_l="Configuration Error"' in caplog.text
     assert "action=run_summary" in caplog.text and "api_requests=3" in caplog.text
+    assert "action=log_level level=INFO" in caplog.text
+
+
+@pytest.mark.parametrize("level, summary, warning", [
+    ("DEBUG", True, True),
+    ("INFO", True, True),
+    ("WARNING", False, True),
+    ("ERROR", False, False),
+])
+def test_log_level_filters_summary_and_warnings(monkeypatch, caplog, level, summary, warning):
+    caplog.set_level(logging.DEBUG)
+    monkeypatch.setattr(common, "logger_for_input", lambda name: logging.getLogger("lvl_" + name))
+    monkeypatch.setattr(common.conf_manager, "get_log_level", lambda **k: level)
+
+    class C:
+        base_url = "https://de3.api.central.arubanetworks.com"
+        request_count = 1
+
+    monkeypatch.setattr(common, "build_client", lambda sk, acc, logger: C())
+
+    def collect(ctx):
+        ctx.logger.warning("action=sample_warning")
+        ctx.logger.error("action=sample_error")
+
+    common.run_inputs(FakeInputs({"aruba_central_wireless://w": {"account": "acc"}}), None, collect)
+    assert ("action=log_level level=%s" % level in caplog.text) is True
+    assert ("action=run_summary" in caplog.text) is summary
+    assert ("action=sample_warning" in caplog.text) is warning
+    assert "action=sample_error" in caplog.text
 
 
 # ---------------------------------------------------------------- handlers

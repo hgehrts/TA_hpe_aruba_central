@@ -1,0 +1,82 @@
+<dashboard version="2" theme="dark">
+    <label>Documentation</label>
+    <description>Configuration, inputs and logging for this add-on.</description>
+    <definition><![CDATA[
+{
+  "title": "Documentation",
+  "description": "How to configure TA_hpe_aruba_central.",
+  "visualizations": {
+    "viz_logo": {
+      "type": "splunk.markdown",
+      "options": {
+        "markdown": "![Libidibia coriaria](/static/app/TA_hpe_aruba_central/libidibia_coriaria.png)\n\n*Libidibia coriaria*"
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "url": "https://en.wikipedia.org/wiki/Libidibia_coriaria",
+            "newTab": true
+          }
+        }
+      ]
+    },
+    "viz_doc": {
+      "type": "splunk.markdown",
+      "options": {
+        "markdown": "# HPE Aruba Central Add-on for Splunk\n\nThis add-on collects access points, swarms, AP throughput, device inventory, site health and alerts from the **HPE Aruba Networking New Central (GreenLake)** REST API. It does not support classic Aruba Central.\n\n## Where to configure the login\n\nOpen **Configuration > Account** and create one entry per API client.\n\n| Field | What to enter |\n|---|---|\n| Name | A name for this account. Inputs refer to it. |\n| API Base URL | The API gateway shown on the Personal API client page in New Central, for example `https://de3.api.central.arubanetworks.com`. |\n| Token URL | `https://sso.common.cloud.hpe.com/as/token.oauth2` unless HPE gave you a different token endpoint. |\n| Client ID | Client ID of the Personal API client. |\n| Client Secret | Client secret. Splunk stores it encrypted. The clear text is not written to the configuration file. |\n| Max requests per second | Per input. The Central account allows about 10 requests per second in total, shared by everything that uses the same account. The default is 2. |\n\nSaving the account requests a token and then calls `GET /network-monitoring/v1/aps?limit=1`. The account is stored only when both calls succeed. A rejected secret, a base URL for the wrong cluster, a missing permission (HTTP 403) or a network failure is reported on the form and nothing is saved.\n\n**Configuration > Proxy** sets an HTTP proxy for the token request and the API. **Configuration > Logging** sets the log level for the inputs and for account validation.\n\nTo rotate a secret, edit the account, enter the new secret and save. The cached token is dropped. Inputs use the new secret on their next run. Then revoke the old secret in New Central.\n\nA TLS-inspecting proxy needs the corporate CA. Add `REQUESTS_CA_BUNDLE` to `$SPLUNK_HOME/etc/splunk-launch.conf` pointing at a bundle that contains the corporate CA and the public CAs, then restart Splunk. This setting applies to every Python `requests` call of that instance. The add-on does not offer a switch to disable TLS verification.\n\n## Requirements\n\n- Splunk Enterprise 10 or Splunk Cloud. Tested on Splunk Enterprise 10.6.1 with Python 3.13 and 3.9.\n- The inputs run on a heavy forwarder or on an all-in-one instance. The search head needs the add-on as well, for the field extractions, but the inputs stay disabled there.\n- The KV store must be running on the instance that runs the inputs. Throughput and alerts keep their checkpoint there.\n- Outbound HTTPS to the token host and the API base URL.\n\nCreate the inputs under **Inputs**. A new input is disabled until you enable it. Pick an index that exists. The value `default` means Splunk's default index.\n\n## Inputs\n\n| Input | Default interval | API | Sourcetype |\n|---|---|---|---|\n| Wireless (APs and Swarms) | 60 seconds (60-86400) | `GET /network-monitoring/v1/aps`, `GET /network-monitoring/v1/swarms` | `aruba:central:ap`, `aruba:central:swarm` |\n| AP Throughput | 900 seconds (60-10800) | `GET /network-monitoring/v1/aps?filter=status eq 'ONLINE'`, then `GET /network-monitoring/v1/aps/{serial}/throughput-trends` | `aruba:central:ap_throughput` |\n| Inventory (Devices) | 3600 seconds (300-86400) | `GET /network-monitoring/v1/device-inventory`, `GET /network-monitoring/v1/devices` | `aruba:central:device_inventory`, `aruba:central:device` |\n| Site Health and Alerts | 300 seconds (60-86400) | `GET /network-monitoring/v1/sites-health`, `GET /network-notifications/v1/alerts` | `aruba:central:site_health`, `aruba:central:alert` |\n\nCPU and memory are the fields `cpuUtilization` and `memoryUtilization` on each access point. They are a point-in-time value from the Wireless input, not a separate metric API. 60 seconds is the shortest interval and the default, because the call is one paginated list rather than one call per access point.\n\nAP Throughput has an interface type: `WIRELESS` (default), `WIRED` or `LTE`. The same interval applies to each. The API returns samples in 5-minute buckets and keeps about 3 hours. Polling every 60 seconds does not create finer samples. It only picks up the next bucket sooner, and every run calls the API once per online access point. The default of 900 seconds avoids that cost. Samples already indexed are not written again.\n\nWireless, inventory and site health write a full snapshot on every run. Use `latest()` per device to read the current state. Alerts are written only when they are new or their content changed. Deleting a throughput or health input deletes its checkpoint.\n\nEach event is JSON. `host` is the API hostname. Search-time fields `vendor`, `product` and `vendor_product` are added to every sourcetype. For `aruba:central:ap`, `cpu_load_percent`, `dest`, `serial`, `mac`, `ip`, `version` and `name` are mapped for the Inventory (Network) and Performance (CPU) data models. `memoryUtilization` is a percentage and is not mapped to `mem_used`, which CIM defines as megabytes.\n\n## Logging\n\nLog files are `$SPLUNK_HOME/var/log/splunk/ta_hpe_aruba_central_<input type>_<input name>.log`, for example `ta_hpe_aruba_central_wireless_campus.log`. Account checks are written to `ta_hpe_aruba_central_account_validation.log`.\n\n| Level | What is written |\n|---|---|\n| DEBUG | Every HTTP request: method, path, status, duration, attempt. The token, the client secret and response bodies are never logged. |\n| INFO | Start, end, events ingested, and a `run_summary` with `api_requests`, `errors` and `duration_s`. |\n| WARNING | Retries, rate limiting and an aborted throughput run. |\n| ERROR | Failures only. |\n\nFailures are one line: `exc_l=\"<category>\" input=... account=... step=<endpoint>: <reason>`.\n\n| Category | Meaning |\n|---|---|\n| Authentication Error | The secret was rejected or the token was rejected after a refresh. |\n| Permission Error | HTTP 403. The API client is missing a role. |\n| Connection Error | DNS, proxy, TLS or timeout, after the retries. |\n| Server Error | HTTP 5xx after the retries. |\n| API Error | Another HTTP 4xx, including 429 after the retries. |\n| KV Store Error | The checkpoint could not be read or written. Throughput tries again on the next run. Alerts are skipped for that run so open alerts are not ingested twice. |\n| Configuration Error | The input has no account. |\n| Unexpected Error | Anything else, with a traceback. |\n\nThe **Dashboard** entry in this add-on shows ingestion and errors from these logs. It is not a view of the collected wireless data.\n"
+      }
+    }
+  },
+  "dataSources": {},
+  "inputs": {},
+  "defaults": {},
+  "layout": {
+    "globalInputs": [],
+    "layoutDefinitions": {
+      "layout_1": {
+        "type": "absolute",
+        "options": {
+          "width": 1200,
+          "display": "auto-scale",
+          "height": 2920
+        },
+        "structure": [
+          {
+            "item": "viz_logo",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "w": 680,
+              "h": 680
+            }
+          },
+          {
+            "item": "viz_doc",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 700,
+              "w": 1200,
+              "h": 2100
+            }
+          }
+        ]
+      }
+    },
+    "options": {
+      "submitButton": false
+    },
+    "tabs": {
+      "items": [
+        {
+          "layoutId": "layout_1",
+          "label": "Documentation"
+        }
+      ]
+    }
+  }
+}
+]]></definition>
+</dashboard>

@@ -1,0 +1,131 @@
+<dashboard version="2" theme="dark">
+    <label>Access points</label>
+    <description>Latest state of each access point.</description>
+    <definition><![CDATA[
+{
+  "title": "Access points",
+  "description": "Latest state of each access point, including the swarm conductor when the swarm endpoint returns one.",
+  "inputs": {
+    "input_time": {
+      "type": "input.timerange",
+      "title": "Time range",
+      "options": {
+        "token": "tr",
+        "defaultValue": "-24h,now"
+      }
+    },
+    "input_site": {
+      "type": "input.text",
+      "title": "Site (wildcard)",
+      "options": {
+        "token": "site",
+        "defaultValue": "*"
+      }
+    },
+    "input_status": {
+      "type": "input.dropdown",
+      "title": "Status",
+      "options": {
+        "token": "status",
+        "defaultValue": "*",
+        "items": [
+          {
+            "label": "All",
+            "value": "*"
+          },
+          {
+            "label": "ONLINE",
+            "value": "ONLINE"
+          },
+          {
+            "label": "OFFLINE",
+            "value": "OFFLINE"
+          }
+        ]
+      }
+    }
+  },
+  "dataSources": {
+    "ds_aps": {
+      "type": "ds.search",
+      "name": "Access points",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:ap\" siteName=\"$site$\"\n| stats latest(deviceName) as AP latest(status) as status latest(clientCount) as sessions latest(cpuUtilization) as cpu_pct latest(memoryUtilization) as mem_pct latest(siteName) as site latest(model) as model latest(firmwareVersion) as firmware latest(clusterId) as clusterId latest(clusterName) as swarm latest(_time) as last_poll by serialNumber\n| join type=left max=1 clusterId\n    [ search `aruba_central_index` sourcetype=\"aruba:central:swarm\"\n      | stats latest(conductorDeviceName) as conductor latest(conductorSerialNumber) as conductor_serial by clusterId ]\n| eval cpu_pct=tonumber(cpu_pct), mem_pct=tonumber(mem_pct), sessions=tonumber(sessions)\n| eval last_poll=strftime(last_poll, \"%Y-%m-%d %H:%M:%S\")\n| eval wanted=\"$status$\"\n| where wanted=\"*\" OR status=wanted\n| table AP serialNumber status sessions cpu_pct mem_pct site swarm conductor conductor_serial model firmware last_poll\n| sort status AP"
+      }
+    }
+  },
+  "visualizations": {
+    "viz_aps": {
+      "type": "splunk.table",
+      "title": "Access points",
+      "dataSources": {
+        "primary": "ds_aps"
+      },
+      "options": {
+        "count": 20
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "url": "/app/aruba_central_poc/access_point?form.serial=$row.serialNumber.value$&form.site=$site$",
+            "newTab": false
+          }
+        }
+      ]
+    }
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "queryParameters": {
+            "earliest": "$tr.earliest$",
+            "latest": "$tr.latest$"
+          }
+        }
+      }
+    }
+  },
+  "layout": {
+    "globalInputs": [
+      "input_time",
+      "input_site",
+      "input_status"
+    ],
+    "layoutDefinitions": {
+      "layout_1": {
+        "type": "absolute",
+        "options": {
+          "width": 1200,
+          "height": 800
+        },
+        "structure": [
+          {
+            "item": "viz_aps",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "w": 1200,
+              "h": 700
+            }
+          }
+        ]
+      }
+    },
+    "options": {
+      "submitButton": false
+    },
+    "tabs": {
+      "items": [
+        {
+          "layoutId": "layout_1",
+          "label": "Access points"
+        }
+      ]
+    }
+  }
+}
+]]></definition>
+</dashboard>

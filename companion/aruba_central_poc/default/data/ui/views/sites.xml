@@ -1,0 +1,108 @@
+<dashboard version="2" theme="dark">
+    <label>Sites</label>
+    <description>Site health.</description>
+    <definition><![CDATA[
+{
+  "title": "Sites",
+  "description": "Latest site health. A row opens the alerts for that site.",
+  "inputs": {
+    "input_time": {
+      "type": "input.timerange",
+      "title": "Time range",
+      "options": {
+        "token": "tr",
+        "defaultValue": "-24h,now"
+      }
+    },
+    "input_site": {
+      "type": "input.text",
+      "title": "Site (wildcard)",
+      "options": {
+        "token": "site",
+        "defaultValue": "*"
+      }
+    }
+  },
+  "dataSources": {
+    "ds_sites": {
+      "type": "ds.search",
+      "name": "Sites",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:site_health\" siteName=\"$site$\"\n| stats latest('clients.count') as clients latest('devices.count') as devices latest('alerts.totalCount') as alerts latest(_time) as last_poll by id siteName\n| eval last_poll=strftime(last_poll, \"%Y-%m-%d %H:%M:%S\")\n| table siteName id clients devices alerts last_poll\n| sort - clients"
+      }
+    }
+  },
+  "visualizations": {
+    "viz_sites": {
+      "type": "splunk.table",
+      "title": "Site health",
+      "dataSources": {
+        "primary": "ds_sites"
+      },
+      "options": {
+        "count": 20
+      },
+      "eventHandlers": [
+        {
+          "type": "drilldown.customUrl",
+          "options": {
+            "url": "/app/aruba_central_poc/alerts?form.site=$row.siteName.value$&form.severity=*",
+            "newTab": false
+          }
+        }
+      ]
+    }
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "queryParameters": {
+            "earliest": "$tr.earliest$",
+            "latest": "$tr.latest$"
+          }
+        }
+      }
+    }
+  },
+  "layout": {
+    "globalInputs": [
+      "input_time",
+      "input_site"
+    ],
+    "layoutDefinitions": {
+      "layout_1": {
+        "type": "absolute",
+        "options": {
+          "width": 1200,
+          "height": 800
+        },
+        "structure": [
+          {
+            "item": "viz_sites",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "w": 1200,
+              "h": 700
+            }
+          }
+        ]
+      }
+    },
+    "options": {
+      "submitButton": false
+    },
+    "tabs": {
+      "items": [
+        {
+          "layoutId": "layout_1",
+          "label": "Sites"
+        }
+      ]
+    }
+  }
+}
+]]></definition>
+</dashboard>

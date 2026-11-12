@@ -203,6 +203,41 @@ def test_retry_after_parsing():
     assert _retry_after_seconds("Thu, 01 Jan 1970 00:00:10 GMT", 0) == pytest.approx(10)
 
 
+def test_request_line_is_debug_only(make_client, caplog):
+    import logging
+
+    logger = logging.getLogger("aruba_request_level")
+    logger.propagate = True
+    session = FakeSession([token_ok("SUPERTOKEN")], [FakeResponse(200, {"items": []})])
+    logger.setLevel(logging.DEBUG)
+    caplog.set_level(logging.DEBUG)
+    make_client(session, logger=logger).get_json("/network-monitoring/v1/aps", {"limit": 1})
+    assert "action=request method=GET path=/network-monitoring/v1/aps status=200" in caplog.text
+    assert "action=request method=POST path=/as/token.oauth2 status=200" in caplog.text
+    assert "SUPERTOKEN" not in caplog.text
+    assert "secret" not in caplog.text
+
+    caplog.clear()
+    logger.setLevel(logging.INFO)
+    session2 = FakeSession([token_ok("SUPERTOKEN")], [FakeResponse(200, {"items": []})])
+    make_client(session2, logger=logger).get_json("/network-monitoring/v1/aps")
+    assert "action=request" not in caplog.text
+    assert "action=token_refreshed" in caplog.text
+
+
+def test_warning_level_hides_info_request_lines(make_client, caplog):
+    import logging
+
+    logger = logging.getLogger("aruba_request_warning")
+    logger.setLevel(logging.WARNING)
+    caplog.set_level(logging.DEBUG)
+    session = FakeSession([token_ok()], [FakeResponse(429, {}, {"Retry-After": "1"}), FakeResponse(200, {})])
+    make_client(session, logger=logger).get_json("/a")
+    assert "action=request" not in caplog.text
+    assert "action=token_refreshed" not in caplog.text
+    assert "action=retry reason=http_429" in caplog.text
+
+
 def test_secret_and_token_not_logged(make_client, caplog):
     import logging
 

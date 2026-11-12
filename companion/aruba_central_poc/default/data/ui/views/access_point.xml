@@ -1,0 +1,168 @@
+<dashboard version="2" theme="dark">
+    <label>Access point</label>
+    <description>One access point.</description>
+    <definition><![CDATA[
+{
+  "title": "Access point",
+  "description": "CPU, memory, sessions and throughput for one access point.",
+  "inputs": {
+    "input_time": {
+      "type": "input.timerange",
+      "title": "Time range",
+      "options": {
+        "token": "tr",
+        "defaultValue": "-24h,now"
+      }
+    },
+    "input_site": {
+      "type": "input.text",
+      "title": "Site (wildcard)",
+      "options": {
+        "token": "site",
+        "defaultValue": "*"
+      }
+    },
+    "input_serial": {
+      "type": "input.text",
+      "title": "Serial number",
+      "options": {
+        "token": "serial",
+        "defaultValue": "*"
+      }
+    }
+  },
+  "dataSources": {
+    "ds_state": {
+      "type": "ds.search",
+      "name": "State",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:ap\" siteName=\"$site$\"\n| where \"$serial$\"=\"*\" OR serialNumber=\"$serial$\"\n| stats latest(deviceName) as AP latest(status) as status latest(clientCount) as sessions latest(cpuUtilization) as cpu_pct latest(memoryUtilization) as mem_pct latest(siteName) as site latest(model) as model latest(firmwareVersion) as firmware by serialNumber\n| eval cpu_pct=tonumber(cpu_pct), mem_pct=tonumber(mem_pct), sessions=tonumber(sessions)"
+      }
+    },
+    "ds_util": {
+      "type": "ds.search",
+      "name": "Utilisation",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:ap\" siteName=\"$site$\"\n| where \"$serial$\"=\"*\" OR serialNumber=\"$serial$\"\n| timechart span=5m max(cpuUtilization) as cpu_pct max(memoryUtilization) as mem_pct max(clientCount) as sessions"
+      }
+    },
+    "ds_tp": {
+      "type": "ds.search",
+      "name": "Throughput",
+      "options": {
+        "query": "`aruba_central_index` sourcetype=\"aruba:central:ap_throughput\" siteName=\"$site$\"\n| where \"$serial$\"=\"*\" OR serialNumber=\"$serial$\"\n| timechart span=5m avg(tx) as tx avg(rx) as rx by interfaceType"
+      }
+    }
+  },
+  "visualizations": {
+    "viz_state": {
+      "type": "splunk.table",
+      "title": "Latest state",
+      "dataSources": {
+        "primary": "ds_state"
+      },
+      "options": {
+        "count": 20
+      }
+    },
+    "viz_util": {
+      "type": "splunk.line",
+      "title": "CPU, memory and sessions",
+      "dataSources": {
+        "primary": "ds_util"
+      },
+      "options": {
+        "x": "> primary | seriesByName('_time')",
+        "y": "> primary | frameBySeriesNames('cpu_pct', 'mem_pct', 'sessions')",
+        "legendDisplay": "bottom",
+        "nullValueDisplay": "gaps"
+      }
+    },
+    "viz_tp": {
+      "type": "splunk.line",
+      "title": "Throughput by interface (bit/s)",
+      "dataSources": {
+        "primary": "ds_tp"
+      },
+      "options": {
+        "x": "> primary | seriesByName('_time')",
+        "y": "> primary | frameBySeriesTypes('number')",
+        "legendDisplay": "bottom",
+        "nullValueDisplay": "gaps"
+      }
+    }
+  },
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "queryParameters": {
+            "earliest": "$tr.earliest$",
+            "latest": "$tr.latest$"
+          }
+        }
+      }
+    }
+  },
+  "layout": {
+    "globalInputs": [
+      "input_time",
+      "input_site",
+      "input_serial"
+    ],
+    "layoutDefinitions": {
+      "layout_1": {
+        "type": "absolute",
+        "options": {
+          "width": 1200,
+          "height": 1000
+        },
+        "structure": [
+          {
+            "item": "viz_state",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "w": 1200,
+              "h": 240
+            }
+          },
+          {
+            "item": "viz_util",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 260,
+              "w": 1200,
+              "h": 320
+            }
+          },
+          {
+            "item": "viz_tp",
+            "type": "block",
+            "position": {
+              "x": 0,
+              "y": 600,
+              "w": 1200,
+              "h": 320
+            }
+          }
+        ]
+      }
+    },
+    "options": {
+      "submitButton": false
+    },
+    "tabs": {
+      "items": [
+        {
+          "layoutId": "layout_1",
+          "label": "Access point"
+        }
+      ]
+    }
+  }
+}
+]]></definition>
+</dashboard>

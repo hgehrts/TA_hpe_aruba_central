@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.2.0
+
+- App icon is the divi-divi tree (*Libidibia coriaria*).
+- The Documentation page shows the same picture. Clicking it opens
+  <https://en.wikipedia.org/wiki/Libidibia_coriaria> in a new window.
+- The add-on is licensed under Apache-2.0.
+
+## 1.1.0
+
+- Wireless input defaults to 60 seconds. CPU and memory are point-in-time values from that input.
+- AP Throughput accepts 60 seconds. The default stays 900 seconds because the API returns 5-minute samples
+  and each run calls the API once per online AP.
+- DEBUG logs every HTTP request without the token, the secret or the response body. INFO, WARNING and ERROR
+  hide that line. Account validation uses the same log level.
+- The add-on menu has a Documentation page next to Configuration.
+- Companion app 1.1.0 replaces the Simple XML overview with Dashboard Studio dashboards for access points,
+  one access point, throughput, devices, sites and alerts, with drilldowns between them. The dashboards
+  and the Documentation page use the dark theme. Studio does not switch a dashboard when the user
+  changes their preference. The companion app declares light and dark, so Search and the app chrome follow
+  the user.
+
 ## 1.0.0
 
 First release for HPE Aruba Networking New Central (GreenLake API). Not an upgrade of the classic
