@@ -1,0 +1,39 @@
+{
+  "_source": "HPE Aruba New Central API reference sample (GET /network-monitoring/v1/aps), not a tenant response",
+  "items": [
+    {
+      "serialNumber": "AP00000001",
+      "macAddress": "bb:5d:11:85:c0:00",
+      "deviceName": "ArubaAP",
+      "model": "AP-115",
+      "partNumber": "JZ336A",
+      "deployment": "Standalone",
+      "role": "Conductor",
+      "deviceFunction": "Instant",
+      "firmwareVersion": "8.5.2.0_59123",
+      "ipv4": "114.191.59.254",
+      "ipv6": "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+      "publicIpv4": "192.170.12.150",
+      "status": "ONLINE",
+      "lastSeenAt": null,
+      "siteId": "1120972196",
+      "siteName": "site1",
+      "clusterName": "cluster_1",
+      "lastRebootReason": "AP_RELOAD",
+      "deviceGroupId": "8100143262",
+      "deviceGroupName": "DeviceGroup1",
+      "clusterId": "00e6b9e8015c1e1dd8f32d83e39606377a205ba2317015ed76",
+      "cpuUtilization": 25,
+      "memoryUtilization": 11,
+      "powerConsumption": 11.891,
+      "clientCount": 8,
+      "buildingId": "b1d2bd91-de81-4097-8420-3ca7f87450fd",
+      "floorId": "16a0aad7-4070-4a19-8a19-fd6b8e1ff012",
+      "id": "AP00000001",
+      "type": "network-monitoring/access-point-monitoring"
+    }
+  ],
+  "count": 1,
+  "total": 4,
+  "next": "2"
+}

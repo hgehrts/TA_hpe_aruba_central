@@ -1,0 +1,20 @@
+{
+  "_source": "HPE Aruba New Central API reference sample (GET /network-monitoring/v1/aps/{serial}/throughput-trends), not a tenant response",
+  "metric": "ap_throughput",
+  "graph": {
+    "keys": [
+      "tx",
+      "rx"
+    ],
+    "samples": [
+      {
+        "data": [
+          10,
+          12
+        ],
+        "timestamp": "2022-07-30T20:00:00Z"
+      }
+    ]
+  },
+  "id": "AP00000001"
+}

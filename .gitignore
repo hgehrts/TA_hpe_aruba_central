@@ -1,0 +1,13 @@
+.venv/
+.venv-*/
+output/
+dist/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+probe_out/
+tests/e2e/certs/
+.DS_Store

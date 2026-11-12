@@ -1,0 +1,85 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      e2e:
+        description: "Run the Docker end-to-end test (Splunk 10.6.1 + mock API)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install test dependencies
+        run: |
+          if [ "${{ matrix.python }}" = "3.9" ]; then
+            pip install -r requirements-test39.txt
+          else
+            pip install -r requirements-dev.txt
+          fi
+      - name: Lint
+        if: matrix.python == '3.13'
+        run: ruff check package/bin tests tools additional_packaging.py
+      - name: Unit tests
+        run: python -m pytest -q --cov=package/bin --cov-report=term --cov-fail-under=80 tests
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        id: py39
+        with:
+          python-version: "3.9"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Create build environments
+        run: |
+          python3.13 -m venv .venv
+          .venv/bin/pip install -r requirements-dev.txt
+          "${{ steps.py39.outputs.python-path }}" -m venv .venv-build39
+          .venv-build39/bin/pip install --upgrade pip
+      - name: Build
+        run: scripts/build.sh
+      - name: AppInspect (precert, cloud)
+        run: scripts/appinspect.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            dist/*.tar.gz
+            dist/*.appinspect.json
+
+  e2e:
+    if: github.event_name == 'workflow_dispatch' && inputs.e2e
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: dist
+      - name: End-to-end test
+        run: tests/e2e/run_e2e.sh dist/TA_hpe_aruba_central-*.tar.gz
+      - name: Splunk logs on failure
+        if: failure()
+        run: docker exec aruba-e2e-splunk bash -c 'tail -n 200 /opt/splunk/var/log/splunk/ta_hpe_aruba_central_*.log' || true

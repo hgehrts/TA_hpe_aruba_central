@@ -1,0 +1,39 @@
+services:
+  mock-aruba:
+    image: python:3.12-slim
+    container_name: aruba-e2e-mock
+    command: ["python", "-u", "/mock/mock_aruba_api.py"]
+    environment:
+      - MOCK_CERT=/certs/mock.pem
+      - MOCK_KEY=/certs/mock.key
+      - MOCK_CLIENT_ID=e2e-client
+      - MOCK_CLIENT_SECRET=${MOCK_CLIENT_SECRET:-e2e-secret}
+    volumes:
+      - ./mock_aruba_api.py:/mock/mock_aruba_api.py:ro
+      - ./certs:/certs:ro
+    ports:
+      - "18443:8443"
+
+  splunk:
+    image: splunk/splunk:${SPLUNK_IMAGE_TAG:-10.6.1}
+    platform: linux/amd64
+    container_name: aruba-e2e-splunk
+    depends_on:
+      - mock-aruba
+    ports:
+      - "18000:8000"
+      - "18089:8089"
+    environment:
+      - SPLUNK_START_ARGS=--accept-license --accept-sgt-current-at-splunk-com --no-prompt --answer-yes
+      - SPLUNK_GENERAL_TERMS=--accept-sgt-current-at-splunk-com
+      - SPLUNK_PASSWORD=${SPLUNK_PASSWORD:?set SPLUNK_PASSWORD}
+      - REQUESTS_CA_BUNDLE=/certs/ca.pem
+    volumes:
+      - ./certs:/certs:ro
+    mem_limit: 6g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/en-US/account/login || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 120s

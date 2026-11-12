@@ -1,0 +1,6 @@
+splunk-add-on-ucc-framework==6.6.1
+splunk-appinspect==4.4.0
+pytest==9.2.0
+pytest-cov==7.1.0
+ruff==0.17.4
+-r package/lib/requirements.txt

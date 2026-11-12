@@ -1,0 +1,523 @@
+{
+    "pages": {
+        "configuration": {
+            "title": "Configuration",
+            "description": "Configure HPE Aruba New Central API clients, proxy and logging.",
+            "tabs": [
+                {
+                    "name": "account",
+                    "title": "Accounts",
+                    "restHandlerModule": "aruba_central_account_handler",
+                    "restHandlerClass": "ArubaCentralAccountHandler",
+                    "table": {
+                        "actions": [
+                            "edit",
+                            "delete",
+                            "clone"
+                        ],
+                        "header": [
+                            {
+                                "label": "Name",
+                                "field": "name"
+                            },
+                            {
+                                "label": "API Base URL",
+                                "field": "base_url"
+                            },
+                            {
+                                "label": "Client ID",
+                                "field": "client_id"
+                            }
+                        ]
+                    },
+                    "entity": [
+                        {
+                            "type": "text",
+                            "label": "Name",
+                            "field": "name",
+                            "help": "A unique name for this account.",
+                            "required": true,
+                            "validators": [
+                                {
+                                    "type": "regex",
+                                    "errorMsg": "Account name must begin with a letter and consist exclusively of alphanumeric characters and underscores.",
+                                    "pattern": "^[a-zA-Z]\\w*$"
+                                },
+                                {
+                                    "type": "string",
+                                    "errorMsg": "Length of account name should be between 1 and 50.",
+                                    "minLength": 1,
+                                    "maxLength": 50
+                                }
+                            ]
+                        },
+                        {
+                            "type": "text",
+                            "label": "API Base URL",
+                            "field": "base_url",
+                            "defaultValue": "https://de3.api.central.arubanetworks.com",
+                            "help": "Cluster API gateway, exactly as shown on the Personal API client page in New Central (e.g. https://de3.api.central.arubanetworks.com for EU-Central3).",
+                            "required": true,
+                            "validators": [
+                                {
+                                    "type": "regex",
+                                    "errorMsg": "Enter an https:// URL without path, e.g. https://de3.api.central.arubanetworks.com",
+                                    "pattern": "^https://[A-Za-z0-9.-]+(:\\d{1,5})?/?$"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "text",
+                            "label": "Token URL",
+                            "field": "token_url",
+                            "defaultValue": "https://sso.common.cloud.hpe.com/as/token.oauth2",
+                            "help": "OAuth2 token endpoint for Central-scoped API clients (client credentials grant).",
+                            "required": true,
+                            "validators": [
+                                {
+                                    "type": "regex",
+                                    "errorMsg": "Enter an https:// URL.",
+                                    "pattern": "^https://[A-Za-z0-9.-]+(:\\d{1,5})?(/[A-Za-z0-9._~/-]*)?$"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "text",
+                            "label": "Client ID",
+                            "field": "client_id",
+                            "help": "Client ID of the New Central Personal API client.",
+                            "required": true,
+                            "validators": [
+                                {
+                                    "type": "string",
+                                    "errorMsg": "Length of client ID should be between 1 and 256.",
+                                    "minLength": 1,
+                                    "maxLength": 256
+                                }
+                            ]
+                        },
+                        {
+                            "type": "text",
+                            "label": "Client Secret",
+                            "field": "client_secret",
+                            "encrypted": true,
+                            "help": "Client secret of the API client. Stored encrypted in Splunk storage/passwords.",
+                            "required": true,
+                            "validators": [
+                                {
+                                    "type": "string",
+                                    "errorMsg": "Length of client secret should be between 1 and 1024.",
+                                    "minLength": 1,
+                                    "maxLength": 1024
+                                }
+                            ]
+                        },
+                        {
+                            "type": "text",
+                            "label": "Max requests per second",
+                            "field": "max_rps",
+                            "defaultValue": "2",
+                            "help": "Request rate limit applied by each input of this account. The Central limit (about 10 requests/s) is shared by the whole Central account, so keep the sum over all concurrently running inputs below it.",
+                            "required": true,
+                            "validators": [
+                                {
+                                    "type": "number",
+                                    "range": [
+                                        1,
+                                        10
+                                    ],
+                                    "isInteger": true,
+                                    "errorMsg": "Enter an integer between 1 and 10."
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "proxyTab",
+                    "proxy_type": false,
+                    "dns_resolution": false,
+                    "username": true,
+                    "password": true,
+                    "host": {
+                        "validators": [
+                            {
+                                "type": "string",
+                                "errorMsg": "Max host length is 4096",
+                                "minLength": 1,
+                                "maxLength": 4096
+                            },
+                            {
+                                "type": "regex",
+                                "errorMsg": "Enter a host name or IP address without scheme, e.g. proxy.example.com",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]*$"
+                            }
+                        ],
+                        "type": "text",
+                        "label": "Host",
+                        "field": "proxy_url",
+                        "required": true
+                    },
+                    "help": "HTTP(S) proxy used for all requests to HPE SSO and the Central API."
+                },
+                {
+                    "type": "loggingTab"
+                }
+            ]
+        },
+        "inputs": {
+            "title": "Inputs",
+            "description": "Manage HPE Aruba New Central data inputs.",
+            "table": {
+                "actions": [
+                    "edit",
+                    "delete",
+                    "clone"
+                ],
+                "header": [
+                    {
+                        "label": "Name",
+                        "field": "name"
+                    },
+                    {
+                        "label": "Account",
+                        "field": "account"
+                    },
+                    {
+                        "label": "Interval",
+                        "field": "interval"
+                    },
+                    {
+                        "label": "Index",
+                        "field": "index"
+                    },
+                    {
+                        "label": "Status",
+                        "field": "disabled"
+                    }
+                ],
+                "moreInfo": [
+                    {
+                        "label": "Name",
+                        "field": "name"
+                    },
+                    {
+                        "label": "Account",
+                        "field": "account"
+                    },
+                    {
+                        "label": "Interval",
+                        "field": "interval"
+                    },
+                    {
+                        "label": "Index",
+                        "field": "index"
+                    },
+                    {
+                        "label": "Interface type",
+                        "field": "interface_type"
+                    },
+                    {
+                        "label": "Status",
+                        "field": "disabled",
+                        "mapping": {
+                            "true": "Inactive",
+                            "false": "Active"
+                        }
+                    }
+                ]
+            },
+            "services": [
+                {
+                    "name": "aruba_central_wireless",
+                    "title": "Wireless (APs and Swarms)",
+                    "inputHelperModule": "aruba_central_wireless_helper",
+                    "disableNewInput": true,
+                    "entity": [
+                        {
+                            "type": "text",
+                            "label": "Name",
+                            "field": "name",
+                            "help": "A unique name for the data input.",
+                            "required": true,
+                            "validators": [
+                                {
+                                    "type": "regex",
+                                    "errorMsg": "Input name must begin with a letter and consist exclusively of alphanumeric characters and underscores.",
+                                    "pattern": "^[a-zA-Z]\\w*$"
+                                },
+                                {
+                                    "type": "string",
+                                    "errorMsg": "Length of input name should be between 1 and 100.",
+                                    "minLength": 1,
+                                    "maxLength": 100
+                                }
+                            ]
+                        },
+                        {
+                            "type": "singleSelect",
+                            "label": "Account",
+                            "field": "account",
+                            "help": "Account to use for this input.",
+                            "required": true,
+                            "options": {
+                                "referenceName": "account"
+                            }
+                        },
+                        {
+                            "type": "interval",
+                            "label": "Interval",
+                            "field": "interval",
+                            "defaultValue": "300",
+                            "help": "Polling interval in seconds (60-86400). Sourcetypes aruba:central:ap and aruba:central:swarm.",
+                            "required": true,
+                            "options": {
+                                "range": [
+                                    60,
+                                    86400
+                                ]
+                            }
+                        },
+                        {
+                            "type": "index",
+                            "label": "Index",
+                            "field": "index",
+                            "defaultValue": "default",
+                            "required": true
+                        }
+                    ]
+                },
+                {
+                    "name": "aruba_central_ap_throughput",
+                    "title": "AP Throughput",
+                    "inputHelperModule": "aruba_central_ap_throughput_helper",
+                    "restHandlerModule": "aruba_central_checkpoint_handler",
+                    "restHandlerClass": "ArubaCentralCheckpointInputHandler",
+                    "disableNewInput": true,
+                    "entity": [
+                        {
+                            "type": "text",
+                            "label": "Name",
+                            "field": "name",
+                            "help": "A unique name for the data input.",
+                            "required": true,
+                            "validators": [
+                                {
+                                    "type": "regex",
+                                    "errorMsg": "Input name must begin with a letter and consist exclusively of alphanumeric characters and underscores.",
+                                    "pattern": "^[a-zA-Z]\\w*$"
+                                },
+                                {
+                                    "type": "string",
+                                    "errorMsg": "Length of input name should be between 1 and 100.",
+                                    "minLength": 1,
+                                    "maxLength": 100
+                                }
+                            ]
+                        },
+                        {
+                            "type": "singleSelect",
+                            "label": "Account",
+                            "field": "account",
+                            "help": "Account to use for this input.",
+                            "required": true,
+                            "options": {
+                                "referenceName": "account"
+                            }
+                        },
+                        {
+                            "type": "interval",
+                            "label": "Interval",
+                            "field": "interval",
+                            "defaultValue": "900",
+                            "help": "Polling interval in seconds (300-10800). Each run makes one API call per AP. Sourcetype aruba:central:ap_throughput.",
+                            "required": true,
+                            "options": {
+                                "range": [
+                                    300,
+                                    10800
+                                ]
+                            }
+                        },
+                        {
+                            "type": "index",
+                            "label": "Index",
+                            "field": "index",
+                            "defaultValue": "default",
+                            "required": true
+                        },
+                        {
+                            "type": "singleSelect",
+                            "label": "Interface type",
+                            "field": "interface_type",
+                            "defaultValue": "WIRELESS",
+                            "help": "WIRELESS: aggregated radio throughput. WIRED: wired uplink. LTE: modem.",
+                            "required": true,
+                            "options": {
+                                "disableSearch": true,
+                                "autoCompleteFields": [
+                                    {
+                                        "value": "WIRELESS",
+                                        "label": "WIRELESS"
+                                    },
+                                    {
+                                        "value": "WIRED",
+                                        "label": "WIRED"
+                                    },
+                                    {
+                                        "value": "LTE",
+                                        "label": "LTE"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "aruba_central_inventory",
+                    "title": "Inventory (Devices)",
+                    "inputHelperModule": "aruba_central_inventory_helper",
+                    "disableNewInput": true,
+                    "entity": [
+                        {
+                            "type": "text",
+                            "label": "Name",
+                            "field": "name",
+                            "help": "A unique name for the data input.",
+                            "required": true,
+                            "validators": [
+                                {
+                                    "type": "regex",
+                                    "errorMsg": "Input name must begin with a letter and consist exclusively of alphanumeric characters and underscores.",
+                                    "pattern": "^[a-zA-Z]\\w*$"
+                                },
+                                {
+                                    "type": "string",
+                                    "errorMsg": "Length of input name should be between 1 and 100.",
+                                    "minLength": 1,
+                                    "maxLength": 100
+                                }
+                            ]
+                        },
+                        {
+                            "type": "singleSelect",
+                            "label": "Account",
+                            "field": "account",
+                            "help": "Account to use for this input.",
+                            "required": true,
+                            "options": {
+                                "referenceName": "account"
+                            }
+                        },
+                        {
+                            "type": "interval",
+                            "label": "Interval",
+                            "field": "interval",
+                            "defaultValue": "3600",
+                            "help": "Polling interval in seconds (300-86400). Sourcetypes aruba:central:device_inventory and aruba:central:device.",
+                            "required": true,
+                            "options": {
+                                "range": [
+                                    300,
+                                    86400
+                                ]
+                            }
+                        },
+                        {
+                            "type": "index",
+                            "label": "Index",
+                            "field": "index",
+                            "defaultValue": "default",
+                            "required": true
+                        }
+                    ]
+                },
+                {
+                    "name": "aruba_central_health",
+                    "title": "Site Health and Alerts",
+                    "inputHelperModule": "aruba_central_health_helper",
+                    "restHandlerModule": "aruba_central_checkpoint_handler",
+                    "restHandlerClass": "ArubaCentralCheckpointInputHandler",
+                    "disableNewInput": true,
+                    "entity": [
+                        {
+                            "type": "text",
+                            "label": "Name",
+                            "field": "name",
+                            "help": "A unique name for the data input.",
+                            "required": true,
+                            "validators": [
+                                {
+                                    "type": "regex",
+                                    "errorMsg": "Input name must begin with a letter and consist exclusively of alphanumeric characters and underscores.",
+                                    "pattern": "^[a-zA-Z]\\w*$"
+                                },
+                                {
+                                    "type": "string",
+                                    "errorMsg": "Length of input name should be between 1 and 100.",
+                                    "minLength": 1,
+                                    "maxLength": 100
+                                }
+                            ]
+                        },
+                        {
+                            "type": "singleSelect",
+                            "label": "Account",
+                            "field": "account",
+                            "help": "Account to use for this input.",
+                            "required": true,
+                            "options": {
+                                "referenceName": "account"
+                            }
+                        },
+                        {
+                            "type": "interval",
+                            "label": "Interval",
+                            "field": "interval",
+                            "defaultValue": "300",
+                            "help": "Polling interval in seconds (60-86400). Sourcetypes aruba:central:site_health and aruba:central:alert.",
+                            "required": true,
+                            "options": {
+                                "range": [
+                                    60,
+                                    86400
+                                ]
+                            }
+                        },
+                        {
+                            "type": "index",
+                            "label": "Index",
+                            "field": "index",
+                            "defaultValue": "default",
+                            "required": true
+                        }
+                    ]
+                }
+            ]
+        },
+        "dashboard": {
+            "panels": [
+                {
+                    "name": "default"
+                }
+            ]
+        }
+    },
+    "meta": {
+        "name": "TA_hpe_aruba_central",
+        "restRoot": "TA_hpe_aruba_central",
+        "version": "1.0.0",
+        "displayName": "HPE Aruba Central Add-on for Splunk",
+        "schemaVersion": "0.0.10",
+        "checkForUpdates": false,
+        "defaultView": "configuration",
+        "supportedPythonVersion": [
+            "3.9",
+            "3.13"
+        ],
+        "supportedThemes": [
+            "light",
+            "dark"
+        ]
+    }
+}

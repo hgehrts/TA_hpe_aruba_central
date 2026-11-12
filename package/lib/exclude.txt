@@ -1,0 +1,13 @@
+# solnlib>=8 pulls OpenTelemetry/gRPC for solnlib.observability, which this add-on
+# never imports. grpcio and protobuf ship platform-specific binaries.
+grpcio
+protobuf
+googleapis-common-protos
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-proto
+opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-exporter-otlp-proto-common
+opentelemetry-semantic-conventions
+importlib-metadata
+zipp
