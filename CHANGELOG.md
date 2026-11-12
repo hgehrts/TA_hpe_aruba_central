@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+- Companion app is now `aruba_central_poc`. Install it as a new app
+  and remove the old one. Its dashboards and drilldowns are unchanged.
+
 ## 1.2.0
 
 - App icon is the divi-divi tree (*Libidibia coriaria*).

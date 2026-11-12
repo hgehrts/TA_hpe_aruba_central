@@ -5,7 +5,7 @@ Collects access point, swarm, AP throughput, device inventory, site health and a
 
 | | |
 |---|---|
-| Version | 1.2.0 |
+| Version | 1.3.0 |
 | Splunk | Enterprise 10.x (tested on 10.6.1.1); Splunk Cloud (AppInspect 4.4.0 precert/cloud checks: 0 failures). Older releases are untested. |
 | Python | 3.13 and 3.9 (`python.required = 3.9, 3.13`); both runtimes tested inside Splunk 10.6.1.1 |
 | API | New Central only. Classic Aruba Central (`apigw-*.central.arubanetworks.com`, `/monitoring/v1|v2`) is **not** supported. |
@@ -240,7 +240,7 @@ python3.9 -m venv .venv-build39 && .venv-build39/bin/pip install -r requirements
 .venv/bin/python -m pytest --cov=package/bin tests          # same with .venv-build39/bin/python
 scripts/build.sh                                            # -> dist/*.tar.gz (libs installed with Python 3.9)
 scripts/appinspect.sh                                       # precert + cloud checks, fails on failures
-tests/e2e/run_e2e.sh dist/TA_hpe_aruba_central-1.2.0.tar.gz # Docker: Splunk 10.6.1 + mock API
+tests/e2e/run_e2e.sh dist/TA_hpe_aruba_central-1.3.0.tar.gz # Docker: Splunk 10.6.1 + mock API
 ```
 
 - `scripts/build.sh [version]` writes the version into `globalConfig.json` (UCC behaviour); reset it when

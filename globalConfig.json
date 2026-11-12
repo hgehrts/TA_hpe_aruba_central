@@ -506,7 +506,7 @@
     "meta": {
         "name": "TA_hpe_aruba_central",
         "restRoot": "TA_hpe_aruba_central",
-        "version": "1.2.0",
+        "version": "1.3.0",
         "displayName": "HPE Aruba Central Add-on for Splunk",
         "schemaVersion": "0.0.10",
         "checkForUpdates": false,
